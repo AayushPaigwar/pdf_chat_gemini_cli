@@ -32,7 +32,6 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
-./android/build/reports/problems/problems-report.html
 
 # Symbolication related
 app.*.symbols
