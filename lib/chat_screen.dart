@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:pdf_chat_gemini/api_service.dart';
+import 'package:pdf_chat_gemini/glass_box.dart';
 import 'package:pdf_chat_gemini/pdf_helper.dart';
 
 class Message {
@@ -19,221 +22,399 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  // Stores the extracted text from the PDF
   String? _extractedPdfText;
-  
-  // Name of the uploaded file to show in UI
   String? _fileName;
-
-  // List of chat messages
   final List<Message> _messages = [];
-
-  // Controller for the text input
   final TextEditingController _controller = TextEditingController();
-
-  // Loading state
   bool _isLoading = false;
 
-  /// Pick a PDF file and extract its text
   Future<void> _uploadPdf() async {
     setState(() => _isLoading = true);
-    
     File? file = await PdfHelper.pickPdfFile();
-    
+
     if (file != null) {
       String text = await PdfHelper.extractTextFromPdf(file);
       setState(() {
         _extractedPdfText = text;
         _fileName = file.path.split('/').last;
-        
-        // Add a system message to chat indicating success
-        _messages.add(Message(
-          text: "PDF Loaded: $_fileName\nYou can now ask questions about it.",
-          isUser: false,
-        ));
+        _messages.add(
+          Message(
+            text:
+                "📄 PDF Loaded: $_fileName\n\nYou can now ask questions about this document.",
+            isUser: false,
+          ),
+        );
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('PDF Text Extracted Successfully!')), 
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cancelled file picker')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PDF Text Extracted Successfully!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
-    
     setState(() => _isLoading = false);
   }
 
-  /// Send message to Gemini API
   Future<void> _sendMessage() async {
     final question = _controller.text.trim();
     if (question.isEmpty) return;
 
-    // Check if PDF is loaded
     if (_extractedPdfText == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload a PDF first.')),
+        const SnackBar(
+          content: Text('Please upload a PDF first.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
 
-    // Add user message to UI
     setState(() {
       _messages.add(Message(text: question, isUser: true));
       _isLoading = true;
     });
     _controller.clear();
 
-    // Construct the prompt
-    // We combine the PDF content and the user question.
-    // NOTE: Gemini has a context window limit. Very large PDFs might need truncation or chunking.
-    // For this simple example, we send the whole text.
-    final prompt = "You are an AI that answers questions based on this PDF. "
-        "Here is the PDF content:\n\n$_extractedPdfText\n\n"
-        "Question: $question";
+    final prompt =
+        "You are an AI assistant analyzing this PDF document. "
+        "Content:\n\n$_extractedPdfText\n\n"
+        "User Question: $question";
 
-    // Call API
     final response = await ApiService.sendMessage(prompt);
 
-    // Add AI response to UI
     setState(() {
-      _messages.add(Message(text: response ?? "Error getting response", isUser: false));
+      _messages.add(
+        Message(
+          text: response ?? "Sorry, I encountered an error.",
+          isUser: false,
+        ),
+      );
       _isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gemini PDF Chat'),
-        backgroundColor: Colors.deepPurple,
-        foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          // Info Section: Show loaded file or instruction
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.grey[200],
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _fileName != null 
-                        ? 'Current File: $_fileName' 
-                        : 'No PDF uploaded yet.',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _isLoading ? null : _uploadPdf,
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Upload PDF'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
+    return Stack(
+      children: [
+        // 1. Background Layer
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0F0C29),
+                  Color(0xFF302B63),
+                  Color(0xFF24243E),
+                ],
+              ),
             ),
           ),
+        ),
 
-          // Chat List
-          Expanded(
-            child: _messages.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Upload a PDF and ask questions!',
-                      style: TextStyle(color: Colors.grey),
+        // 2. Ambient Color Blobs (to show off the glass effect)
+        Positioned(
+          top: -100,
+          left: -100,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.purpleAccent.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 100,
+          right: -100,
+          child: Container(
+            width: 300,
+            height: 300,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.blueAccent.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+
+        // 3. Blur Filter for Blobs
+        Positioned.fill(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+            child: Container(color: Colors.transparent),
+          ),
+        ),
+
+        // 4. Main Content
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          extendBodyBehindAppBar: true,
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(70),
+            child: ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: AppBar(
+                  backgroundColor: Colors.white.withValues(alpha: 0.05),
+                  elevation: 0,
+                  centerTitle: true,
+                  title: const Text(
+                    'Gemini PDF Chat',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.info_outline),
+                      onPressed: () {},
                     ),
-                  )
-                : ListView.builder(
-                    itemCount: _messages.length,
-                    padding: const EdgeInsets.all(16),
-                    itemBuilder: (context, index) {
-                      final message = _messages[index];
-                      return Align(
-                        alignment: message.isUser 
-                            ? Alignment.centerRight 
-                            : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.all(12),
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75
-                          ),
-                          decoration: BoxDecoration(
-                            color: message.isUser 
-                                ? Colors.deepPurple[100] 
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey[300]!),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.grey.withOpacity(0.1),
-                                spreadRadius: 1,
-                                blurRadius: 2,
-                              )
-                            ]
-                          ),
-                          child: MarkdownBody(
-                            data: message.text,
-                            selectable: true,
-                            styleSheet: MarkdownStyleSheet(
-                              p: TextStyle(
-                                color: message.isUser ? Colors.black87 : Colors.black,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          body: Column(
+            children: [
+              // Spacer for AppBar since we extended body behind it
+              const SizedBox(height: 150),
+
+              // File Info Card
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: GlassBox(
+                  height: 70,
+                  opacity: 0.1,
+                  child: Row(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.picture_as_pdf,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _fileName ?? 'No PDF Selected',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              _fileName != null
+                                  ? 'Ready to chat'
+                                  : 'Upload to start',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: TextButton.icon(
+                          onPressed: _isLoading ? null : _uploadPdf,
+                          icon: const Icon(
+                            Icons.upload_file,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Upload',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.1,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
                             ),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-          ),
+                ),
+              ),
 
-          // Input Area
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: LinearProgressIndicator(),
-            ),
-          
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  offset: const Offset(0, -2),
-                  blurRadius: 5
-                )
-              ]
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Ask a question...', 
-                      border: InputBorder.none,
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
+              // Chat Area
+              Expanded(
+                child: _messages.isEmpty
+                    ? Center(
+                        child: GlassBox(
+                          width: 300,
+                          height: 150,
+                          padding: const EdgeInsets.all(20),
+                          opacity: 0.05,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.chat_bubble_outline,
+                                size: 40,
+                                color: Colors.white70,
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Upload a PDF to start chatting',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          return Align(
+                            alignment: message.isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: GlassBox(
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(20),
+                                  topRight: const Radius.circular(20),
+                                  bottomLeft: message.isUser
+                                      ? const Radius.circular(20)
+                                      : Radius.zero,
+                                  bottomRight: message.isUser
+                                      ? Radius.zero
+                                      : const Radius.circular(20),
+                                ),
+                                opacity: message.isUser ? 0.2 : 0.1,
+                                padding: const EdgeInsets.all(16),
+                                // Limit width to 80% of screen
+                                width: MediaQuery.of(context).size.width * 0.8,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (!message.isUser)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8.0,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.auto_awesome,
+                                              size: 16,
+                                              color: Colors.cyanAccent,
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              'Gemini',
+                                              style: TextStyle(
+                                                color: Colors.cyanAccent
+                                                    .withValues(alpha: 0.8),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    MarkdownBody(
+                                      data: message.text,
+                                      selectable: true,
+                                      styleSheet: MarkdownStyleSheet(
+                                        p: const TextStyle(color: Colors.white),
+                                        strong: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        code: TextStyle(
+                                          backgroundColor: Colors.black
+                                              .withValues(alpha: 0.3),
+                                          color: Colors.amberAccent,
+                                          fontFamily: 'monospace',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+
+              // Input Area
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                child: GlassBox(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Ask a question...',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (_) => _sendMessage(),
+                        ),
+                      ),
+                      if (_isLoading)
+                        const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      else
+                        IconButton(
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.cyanAccent,
+                          ),
+                          onPressed: _sendMessage,
+                        ),
+                    ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.deepPurple),
-                  onPressed: _isLoading ? null : _sendMessage,
-                ),
-              ],
-            ),
+              ),
+
+              // Safe area padding
+              SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+            ],
           ),
-          // Add safe area for bottom devices (like iPhone X+) 
-          SizedBox(height: MediaQuery.of(context).padding.bottom), 
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
