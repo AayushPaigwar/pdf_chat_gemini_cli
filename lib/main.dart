@@ -25,13 +25,19 @@ class MyApp extends StatelessWidget {
       title: 'Gemini PDF Chat',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: Colors.deepPurpleAccent,
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFE0E7FF), // Periwinkle Blue background
+        primaryColor: Colors.black,
+        textTheme: GoogleFonts.publicSansTextTheme(ThemeData.light().textTheme).apply(
+          bodyColor: Colors.black,
+          displayColor: Colors.black,
+        ),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.dark,
+          seedColor: Colors.black,
+          brightness: Brightness.light,
+          primary: Colors.black,
+          secondary: const Color(0xFFFF90E8), // Pink
+          tertiary: const Color(0xFFFFC900), // Yellow
         ),
         useMaterial3: true,
       ),
