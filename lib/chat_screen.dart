@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:pdf_chat_gemini/api_service.dart';
-import 'package:pdf_chat_gemini/glass_box.dart';
+import 'package:pdf_chat_gemini/neo_box.dart';
 import 'package:pdf_chat_gemini/pdf_helper.dart';
 
 class Message {
@@ -49,7 +48,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('PDF Text Extracted Successfully!'),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.black,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -99,322 +98,277 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // 1. Background Layer
-        Positioned.fill(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0F0C29),
-                  Color(0xFF302B63),
-                  Color(0xFF24243E),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFDF0), // Off-white/Cream
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFFDF0),
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        centerTitle: true,
+        bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(color: Colors.black, height: 3),
+        ),
+        title: const Text(
+          'GEMINI PDF CHAT',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 20,
+            letterSpacing: 1.5,
+            color: Colors.black
+          ),
+        ),
+        actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: const Icon(Icons.info_outline, color: Colors.black),
+                onPressed: () {},
+              ),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // File Info Card
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: NeoBox(
+              color: const Color(0xFFB4F8C8), // Neo Mint
+              child: Row(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(0),
+                    ),
+                    child: const Icon(
+                      Icons.description,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _fileName ?? 'NO PDF SELECTED',
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          _fileName != null
+                              ? 'READY TO CHAT'
+                              : 'UPLOAD TO START',
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12.0),
+                    child: TextButton.icon(
+                      onPressed: _isLoading ? null : _uploadPdf,
+                      icon: const Icon(
+                        Icons.upload_file,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'UPLOAD',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(0),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ),
 
-        // 2. Ambient Color Blobs (to show off the glass effect)
-        Positioned(
-          top: -100,
-          left: -100,
-          child: Container(
-            width: 300,
-            height: 300,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.purpleAccent.withValues(alpha: 0.4),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: 100,
-          right: -100,
-          child: Container(
-            width: 300,
-            height: 300,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.blueAccent.withValues(alpha: 0.4),
-            ),
-          ),
-        ),
-
-        // 3. Blur Filter for Blobs
-        Positioned.fill(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-            child: Container(color: Colors.transparent),
-          ),
-        ),
-
-        // 4. Main Content
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          extendBodyBehindAppBar: true,
-          appBar: PreferredSize(
-            preferredSize: const Size.fromHeight(70),
-            child: ClipRRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: AppBar(
-                  backgroundColor: Colors.white.withValues(alpha: 0.05),
-                  elevation: 0,
-                  centerTitle: true,
-                  title: const Text(
-                    'Gemini PDF Chat',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.info_outline),
-                      onPressed: () {},
+          // Chat Area
+          Expanded(
+            child: _messages.isEmpty
+                ? Center(
+                    child: NeoBox(
+                      width: 300,
+                      height: 200,
+                      color: Colors.white,
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.chat_bubble_outline,
+                            size: 40,
+                            color: Colors.black,
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'UPLOAD A PDF\nTO START CHATTING',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          body: Column(
-            children: [
-              // Spacer for AppBar since we extended body behind it
-              const SizedBox(height: 150),
-
-              // File Info Card
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: GlassBox(
-                  height: 70,
-                  opacity: 0.1,
-                  child: Row(
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.all(12),
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.picture_as_pdf,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _fileName ?? 'No PDF Selected',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              _fileName != null
-                                  ? 'Ready to chat'
-                                  : 'Upload to start',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: TextButton.icon(
-                          onPressed: _isLoading ? null : _uploadPdf,
-                          icon: const Icon(
-                            Icons.upload_file,
-                            color: Colors.white,
-                          ),
-                          label: const Text(
-                            'Upload',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                          style: TextButton.styleFrom(
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.1,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Chat Area
-              Expanded(
-                child: _messages.isEmpty
-                    ? Center(
-                        child: GlassBox(
-                          width: 300,
-                          height: 150,
-                          padding: const EdgeInsets.all(20),
-                          opacity: 0.05,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.chat_bubble_outline,
-                                size: 40,
-                                color: Colors.white70,
-                              ),
-                              const SizedBox(height: 10),
-                              const Text(
-                                'Upload a PDF to start chatting',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          return Align(
-                            alignment: message.isUser
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: GlassBox(
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(20),
-                                  topRight: const Radius.circular(20),
-                                  bottomLeft: message.isUser
-                                      ? const Radius.circular(20)
-                                      : Radius.zero,
-                                  bottomRight: message.isUser
-                                      ? Radius.zero
-                                      : const Radius.circular(20),
-                                ),
-                                opacity: message.isUser ? 0.2 : 0.1,
-                                padding: const EdgeInsets.all(16),
-                                // Limit width to 80% of screen
-                                width: MediaQuery.of(context).size.width * 0.8,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (!message.isUser)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 8.0,
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.auto_awesome,
-                                              size: 16,
-                                              color: Colors.cyanAccent,
-                                            ),
-                                            const SizedBox(width: 5),
-                                            Text(
-                                              'Gemini',
-                                              style: TextStyle(
-                                                color: Colors.cyanAccent
-                                                    .withValues(alpha: 0.8),
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    MarkdownBody(
-                                      data: message.text,
-                                      selectable: true,
-                                      styleSheet: MarkdownStyleSheet(
-                                        p: const TextStyle(color: Colors.white),
-                                        strong: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        code: TextStyle(
-                                          backgroundColor: Colors.black
-                                              .withValues(alpha: 0.3),
-                                          color: Colors.amberAccent,
-                                          fontFamily: 'monospace',
-                                        ),
-                                      ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      return Align(
+                        alignment: message.isUser
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: NeoBox(
+                            color: message.isUser ? const Color(0xFFFFC900) : Colors.white, // Yellow vs White
+                            shadowColor: Colors.black,
+                            shadowOffset: const Offset(4, 4),
+                            borderRadius: BorderRadius.circular(0), // Sharp edges
+                            padding: const EdgeInsets.all(16),
+                            // Limit width to 85% of screen
+                            width: MediaQuery.of(context).size.width * 0.85,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (!message.isUser)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 8.0,
                                     ),
-                                  ],
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.smart_toy,
+                                          size: 16,
+                                          color: Colors.black,
+                                        ),
+                                        const SizedBox(width: 5),
+                                        const Text(
+                                          'GEMINI',
+                                          style: TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                MarkdownBody(
+                                  data: message.text,
+                                  selectable: true,
+                                  styleSheet: MarkdownStyleSheet(
+                                    p: const TextStyle(color: Colors.black, fontSize: 15, height: 1.5),
+                                    strong: const TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                    code: TextStyle(
+                                      backgroundColor: Colors.black.withValues(alpha: 0.1),
+                                      color: Colors.black,
+                                      fontFamily: 'monospace',
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-              ),
-
-              // Input Area
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                child: GlassBox(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'Ask a question...',
-                            hintStyle: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.5),
-                            ),
-                            border: InputBorder.none,
                           ),
-                          onSubmitted: (_) => _sendMessage(),
                         ),
-                      ),
-                      if (_isLoading)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                      );
+                    },
+                  ),
+          ),
+
+          // Input Area
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            child: NeoBox(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: TextField(
+                        controller: _controller,
+                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                        decoration: const InputDecoration(
+                          hintText: 'TYPE HERE...',
+                          hintStyle: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold
                           ),
-                        )
-                      else
-                        IconButton(
+                          border: InputBorder.none,
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                  ),
+                  if (_isLoading)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                       decoration: const BoxDecoration(
+                          color: Colors.black,
+                          shape: BoxShape.circle
+                       ),
+                      width: 48,
+                      height: 48,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.black,
+                            border: Border.all(color: Colors.black, width: 2),
+                        ),
+                        child: IconButton(
                           icon: const Icon(
-                            Icons.send_rounded,
-                            color: Colors.cyanAccent,
+                            Icons.arrow_forward,
+                            color: Colors.white,
                           ),
                           onPressed: _sendMessage,
                         ),
-                    ],
-                  ),
-                ),
+                    ),
+                ],
               ),
-
-              // Safe area padding
-              SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
-            ],
+            ),
           ),
-        ),
-      ],
+
+          // Safe area padding
+          SizedBox(height: MediaQuery.of(context).viewInsets.bottom),
+        ],
+      ),
     );
   }
 }
