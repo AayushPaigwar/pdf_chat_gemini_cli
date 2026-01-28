@@ -2,7 +2,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:pdf_text/pdf_text.dart';
+import 'package:read_pdf_text/read_pdf_text.dart';
 
 /// Helper class to handle PDF file picking and text extraction.
 class PdfHelper {
@@ -28,11 +28,8 @@ class PdfHelper {
   /// Returns the full extracted text as a String.
   static Future<String> extractTextFromPdf(File file) async {
     try {
-      // Load the PDF document
-      PDFDoc doc = await PDFDoc.fromFile(file);
-
-      // Extract text from all pages
-      String text = await doc.text;
+      // Extract text from the PDF file
+      String text = await ReadPdfText.getPDFtext(file.path);
 
       // Return cleaned text (optional: trim whitespace)
       return text.trim();
